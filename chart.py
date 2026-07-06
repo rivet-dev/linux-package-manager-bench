@@ -42,13 +42,21 @@ def draw(ax, mgrs):
             ax.barh(i, v, left=left, height=0.62, color=COLORS[s],
                     edgecolor=ec, linewidth=1.2, hatch=hatch)
             left += v
+        # A sub-millisecond install (agentos) is a zero-width sliver on a seconds
+        # axis — draw a marker at x=0 so the row is visibly present, not blank.
+        if left <= 0:
+            ax.plot(0, i, marker="D", markersize=7, color="#2a78d6",
+                    markeredgecolor="#fcfcfb", markeredgewidth=1.0, zorder=7, clip_on=False)
     ax.set_facecolor("#fcfcfb")
     ax.set_axisbelow(True)
     ax.grid(axis="x", color="#e1e0d9", linewidth=0.8)
 
 
 def bar_label(mgrs, totals, i):
-    return f"{totals[i]:.2f}s"
+    t = totals[i]
+    if t < 0.001:  # sub-millisecond (agentos): seconds would round to 0.00s
+        return f"{t * 1000:.3f} ms  (hardcoded ref)"
+    return f"{t:.2f}s"
 
 
 def ytick(m):
