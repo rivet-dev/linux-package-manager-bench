@@ -65,13 +65,13 @@ function topSteps(lines, n = 3) {
 
 // ---- HARDCODED agentos reference (not run by the Docker harness) ----
 // agentOS does not "install" a package the way apt/apk/etc. do — it loads a
-// precomputed `.aospkg` into its VM. Loading the `git` package takes ~0.017 ms
-// (median; min 0.013, max 0.020), with no download. These numbers are copied from
+// precomputed `.aospkg` into its VM. Loading the `git` package takes ~0.130 ms
+// (median; min 0.100, max 0.150), with no download. These numbers are copied from
 // the agentOS package-load benchmark and are NOT reproduced by this repo:
 // https://github.com/rivet-dev/agentos/blob/9c97667d3b765ea008e3c661cc807adbcb0c9ac9/crates/native-sidecar/tests/projection_bench.rs
 const AGENTOS_ROW = {
   manager: 'agentos', image: 'agentos VM (V8/wasm)', git: 'wasm', reps: 30, deps: '1',
-  download_s: 0, install_s: 0.000017, install_min: 0.000013, install_max: 0.00002,
+  download_s: 0, install_s: 0.00013, install_min: 0.0001, install_max: 0.00015,
   buckets: Object.fromEntries(DISPLAY_PHASES.map((k) => [k, 0])), top: [], size: undefined,
 };
 
