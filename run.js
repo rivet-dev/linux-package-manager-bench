@@ -36,4 +36,8 @@ for (const m of managers) {
 if (!noSynth) {
   console.log('\n=== synthesis ===');
   spawnSync('node', [path.join(ROOT, 'synthesize.js')], { stdio: 'inherit' });
+  const py = spawnSync('python3', [path.join(ROOT, 'chart.py')], { stdio: 'inherit' });
+  if (py.status !== 0) {
+    console.error('! chart.py failed — is matplotlib installed? `pip install -r requirements.txt`. chart.png not updated.');
+  }
 }

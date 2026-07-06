@@ -155,103 +155,6 @@ function updateReadme(section) {
   fs.writeFileSync(rp, txt);
 }
 
-// ---- chart: stacked bars of INSTALL time by phase (download excluded) ----
-// Validated 6-slot categorical palette (see dataviz skill, both modes pass).
-const PHASE_KEYS = PHASES.map(([k]) => k);
-const PHASE_COLORS = {
-  light: ['#2a78d6', '#1baf7a', '#eda100', '#008300', '#4a3aa7', '#e34948'],
-  dark:  ['#3987e5', '#199e70', '#c98500', '#008300', '#9085e9', '#e66767'],
-};
-
-function chartHtml() {
-  const data = {
-    labels: rows.map((r) => r.manager),
-    phases: PHASE_KEYS,
-    values: PHASE_KEYS.map((k) => rows.map((r) => +r.buckets[k].toFixed(3))),
-    totals: rows.map((r) => +r.install_s.toFixed(3)),
-    light: PHASE_COLORS.light, dark: PHASE_COLORS.dark,
-  };
-  return `<!doctype html>
-<html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>git install time by phase</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-<style>
- :root{color-scheme:light dark}
- body{margin:0;padding:24px;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#f9f9f7;color:#0b0b0b}
- .card{max-width:880px;margin:0 auto;background:#fcfcfb;border:1px solid rgba(11,11,11,.10);border-radius:12px;padding:20px 22px}
- h1{font-size:18px;margin:0 0 2px} p.sub{margin:0 0 16px;color:#52514e;font-size:13px}
- @media (prefers-color-scheme:dark){
-  body{background:#0d0d0d;color:#fff} .card{background:#1a1a19;border-color:rgba(255,255,255,.10)} p.sub{color:#c3c2b7}
- }
-</style></head>
-<body><div class="card">
-<h1>git install time by phase</h1>
-<p class="sub">Offline install only (download excluded) &middot; seconds &middot; lower is faster</p>
-<canvas id="c" height="260"></canvas>
-</div>
-<script>
-const D = ${JSON.stringify(data)};
-function render(){
- const dark = matchMedia('(prefers-color-scheme: dark)').matches;
- const pal = dark ? D.dark : D.light, surface = dark ? '#1a1a19' : '#fcfcfb';
- const ink = dark ? '#c3c2b7' : '#52514e', grid = dark ? '#2c2c2a' : '#e1e0d9';
- const ds = D.phases.map((p,i)=>({label:p,data:D.values[i],backgroundColor:pal[i],borderColor:surface,borderWidth:2,borderRadius:3}));
- if(window._c) window._c.destroy();
- window._c = new Chart(document.getElementById('c'),{type:'bar',data:{labels:D.labels,datasets:ds},
-  options:{indexAxis:'y',responsive:true,animation:false,
-   scales:{x:{stacked:true,title:{display:true,text:'install time (s)',color:ink},ticks:{color:ink},grid:{color:grid}},
-           y:{stacked:true,ticks:{color:ink},grid:{display:false}}},
-   plugins:{legend:{position:'top',labels:{color:ink,boxWidth:12,boxHeight:12,usePointStyle:true,pointStyle:'rect'}},
-            tooltip:{callbacks:{footer:(it)=>'total '+D.totals[it[0].dataIndex]+'s'}}}}});
-}
-render();
-matchMedia('(prefers-color-scheme: dark)').addEventListener('change',render);
-</script>
-</body></html>`;
-}
-
-function chartSvg() {
-  const W = 760, rowH = 26, gap = 12, topY = 86, leftLabel = 76, rightPad = 56;
-  const plotW = W - leftLabel - rightPad;
-  const H = topY + rows.length * (rowH + gap) + 12;
-  const max = Math.max(...rows.map((r) => r.install_s), 0.001);
-  const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
-  let s = '';
-  let lx = leftLabel;
-  PHASE_KEYS.forEach((p, i) => {
-    s += `<rect x="${lx}" y="43" width="11" height="11" rx="2" class="p${i}"/>`;
-    s += `<text x="${lx + 16}" y="52" class="t-sec lbl">${esc(p)}</text>`;
-    lx += 24 + p.length * 7.2;
-  });
-  rows.forEach((r, ri) => {
-    const y = topY + ri * (rowH + gap);
-    s += `<text x="${leftLabel - 8}" y="${(y + rowH * 0.7).toFixed(0)}" class="t-sec name" text-anchor="end">${esc(r.manager)}</text>`;
-    let cx = leftLabel;
-    PHASE_KEYS.forEach((p, i) => {
-      const w = (r.buckets[p] / max) * plotW;
-      if (w > 0.5) s += `<rect x="${cx.toFixed(1)}" y="${y}" width="${Math.max(1, w - 2).toFixed(1)}" height="${rowH}" rx="2" class="p${i}"><title>${esc(r.manager)} · ${esc(p)}: ${r.buckets[p].toFixed(2)}s</title></rect>`;
-      cx += w;
-    });
-    s += `<text x="${(cx + 6).toFixed(1)}" y="${(y + rowH * 0.7).toFixed(0)}" class="t-pri tot">${r.install_s.toFixed(2)}s</text>`;
-  });
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="system-ui,-apple-system,'Segoe UI',sans-serif">
-<style>
- .bg{fill:#fcfcfb;stroke:rgba(11,11,11,.10)} .t-pri{fill:#0b0b0b}.t-sec{fill:#52514e}
- .title{font-size:15px;font-weight:600}.sub{font-size:11px}.lbl{font-size:11px}.name{font-size:12px}.tot{font-size:11px;font-weight:600}
- .p0{fill:#2a78d6}.p1{fill:#1baf7a}.p2{fill:#eda100}.p3{fill:#008300}.p4{fill:#4a3aa7}.p5{fill:#e34948}
- @media (prefers-color-scheme:dark){
-  .bg{fill:#1a1a19;stroke:rgba(255,255,255,.10)} .t-pri{fill:#fff}.t-sec{fill:#c3c2b7}
-  .p0{fill:#3987e5}.p1{fill:#199e70}.p2{fill:#c98500}.p3{fill:#008300}.p4{fill:#9085e9}.p5{fill:#e66767}
- }
-</style>
-<rect class="bg" x="0.5" y="0.5" width="${W - 1}" height="${H - 1}" rx="12"/>
-<text x="16" y="24" class="t-pri title">git install time by phase</text>
-<text x="16" y="40" class="t-sec sub">offline install only (download excluded) · seconds · lower is faster</text>
-${s}
-</svg>`;
-}
-
 // ---- emit ----
 console.log('\nHost: ' + HW.model + ` · ${HW.cores} cores · ${HW.mem} · ${HW.arch} · Docker ${HW.docker}`);
 console.log('\n' + matrix() + '\n');
@@ -259,8 +162,13 @@ console.log('Top install sub-steps:');
 for (const r of rows) console.log(`  ${pad(r.manager, 8)} ${r.top.join('  |  ')}`);
 const section = body();
 fs.writeFileSync(path.join(OUT, 'RESULTS.md'), '# Results — `git` install phase correlation\n\n' + section + '\n');
-fs.writeFileSync(path.join(__dirname, 'chart.html'), chartHtml());
-fs.writeFileSync(path.join(__dirname, 'chart.svg'), chartSvg());
-const chartEmbed = '![git install time by phase](chart.svg)\n\n_Interactive version: [`chart.html`](chart.html) — hover for per-phase values._';
-updateReadme(chartEmbed + '\n\n' + section);
-console.log('\nWrote results/RESULTS.md, chart.html, chart.svg, and refreshed README.md');
+// machine-readable data for chart.py (matplotlib) to render chart.png
+fs.writeFileSync(path.join(OUT, 'data.json'), JSON.stringify({
+  host: HW,
+  managers: rows.map((r) => ({
+    manager: r.manager, image: r.image, git: r.git,
+    download_s: r.download_s, install_s: r.install_s, buckets: r.buckets,
+  })),
+}, null, 2));
+updateReadme('![git install time by phase](chart.png)\n\n' + section);
+console.log('\nWrote results/RESULTS.md, results/data.json, and refreshed README.md (chart.png via chart.py)');
