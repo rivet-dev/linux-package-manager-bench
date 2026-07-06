@@ -25,7 +25,7 @@ so the install can be broken down step by step. Set `REPS=<n>` to change the rep
 > `.aospkg` into its VM; loading the `git` package takes **~0.017 ms** (median; min 0.013,
 > max 0.020), with no download step. That number comes from the agentOS package-load
 > benchmark, not from this repo:
-> <https://github.com/rivet-dev/agentos/blob/9c97667d3b765ea008e3c661cc807adbcb0c9ac9/crates/native-sidecar/tests/projection_bench.rs>
+> <https://github.com/rivet-dev/agentos/blob/f66918af5708776823b57fafc6b8d0e318e08764/crates/native-sidecar/tests/projection_bench.rs#L606>
 
 ## Latest results
 
