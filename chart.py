@@ -55,7 +55,7 @@ def ytick(m):
     if m.get("manager") == "nix":
         return "nix\n(symlink flip)"
     d = m.get("deps")
-    return f"{m['manager']}\n~{d} pkg" if d else m["manager"]
+    return f"{m['manager']}\n~{d} pkg" if d and d != "0" else m["manager"]
 
 
 def main():
@@ -130,6 +130,9 @@ def main():
     reps = mgrs[0].get("reps", "?")
     fig.suptitle(f"git install time by phase  ·  offline, download excluded  ·  bar = median of {reps} runs, whisker = min–max",
                  x=0.02, ha="left", y=0.99, fontsize=11, fontweight="bold", color="#0b0b0b")
+    if any(m.get("manager") == "nix" for m in mgrs):
+        fig.text(0.98, 0.015, "hatched = not comparable (install ≠ unpack)",
+                 ha="right", va="bottom", fontsize=8, style="italic", color="#52514e")
     fig.subplots_adjust(top=0.82, bottom=0.16, left=0.10, right=0.93)
     fig.savefig(os.path.join(ROOT, "chart.png"), facecolor="#fcfcfb")
     print("wrote chart.png")
