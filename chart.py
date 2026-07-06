@@ -14,12 +14,12 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(ROOT, "results", "data.json")
 
 PHASES = ["startup", "resolve", "verify", "unpack", "configure", "link"]
-SEGMENTS = PHASES + ["overhead"]
-# Validated 6-slot categorical palette (dataviz skill) + muted gray for overhead.
+SEGMENTS = PHASES + ["unknown", "overhead"]
+# Validated 6-slot categorical palette (dataviz skill) + grays for unknown/overhead.
 COLORS = {
     "startup": "#2a78d6", "resolve": "#1baf7a", "verify": "#eda100",
     "unpack": "#008300", "configure": "#4a3aa7", "link": "#e34948",
-    "overhead": "#c3c2b7",
+    "unknown": "#8a8f98", "overhead": "#c3c2b7",
 }
 
 
@@ -53,21 +53,32 @@ def main():
     mgrs.sort(key=lambda m: m["install_s"])  # ascending
     names = [m["manager"] for m in mgrs]
     totals = [m["install_s"] for m in mgrs]
+    lows = [m.get("install_min", t) for m, t in zip(mgrs, totals)]
+    highs = [m.get("install_max", t) for m, t in zip(mgrs, totals)]
+
+    def whisker(ax, i):
+        lo, hi = lows[i], highs[i]
+        if hi > lo:
+            ax.plot([lo, hi], [i, i], color="#0b0b0b", lw=1.1, zorder=6)
+            for x in (lo, hi):
+                ax.plot([x, x], [i - 0.11, i + 0.11], color="#0b0b0b", lw=1.1, zorder=6)
 
     top = max(totals)
-    others = max([t for t in totals if t < top], default=0.0)
+    oi = totals.index(top)  # outlier row
+    others = max([t for j, t in enumerate(totals) if j != oi], default=0.0)
+    non_out_hi = max([highs[j] for j in range(len(totals)) if j != oi], default=top)
     broken = top > 4 * others and top > 5 and others > 0
     h = 1.6 + 0.5 * len(mgrs)
 
     plt.rcParams["font.family"] = "sans-serif"
     if broken:
-        left_max = round(others * 1.18 + 0.05, 2)
+        left_max = round(non_out_hi * 1.10 + 0.05, 2)
         fig, (axl, axr) = plt.subplots(
             1, 2, sharey=True, figsize=(9.2, h), dpi=150,
             gridspec_kw={"width_ratios": [4, 1.15], "wspace": 0.06})
         draw(axl, mgrs); draw(axr, mgrs)
         axl.set_xlim(0, left_max)
-        axr.set_xlim(top * 0.965, top * 1.02)
+        axr.set_xlim(lows[oi] * 0.985, highs[oi] * 1.02)
         axr.set_xticks([round(top, 2)])
         axl.spines[["right", "top"]].set_visible(False)
         axr.spines[["left", "top"]].set_visible(False)
@@ -81,27 +92,30 @@ def main():
         axl.set_yticks(range(len(names))); axl.set_yticklabels(names, fontsize=11)
         axl.set_xlabel("install time (s)", fontsize=9, color="#52514e")
         for i, t in enumerate(totals):
-            ax = axr if t > left_max else axl
-            ax.text(t + (top * 0.006 if ax is axr else left_max * 0.02), i,
+            ax = axr if i == oi else axl
+            whisker(ax, i)
+            ax.text(highs[i] + (top * 0.006 if ax is axr else left_max * 0.02), i,
                     f"{t:.2f}s", va="center", fontsize=9.5, fontweight="bold", color="#0b0b0b")
     else:
         fig, ax = plt.subplots(figsize=(9.2, h), dpi=150)
         draw(ax, mgrs)
-        ax.set_xlim(0, top * 1.10)
+        ax.set_xlim(0, max(highs) * 1.12)
         ax.spines[["right", "top"]].set_visible(False)
         ax.spines["bottom"].set_color("#c3c2b7")
         ax.set_yticks(range(len(names))); ax.set_yticklabels(names, fontsize=11)
         ax.set_xlabel("install time (s)", fontsize=9, color="#52514e")
         for i, t in enumerate(totals):
-            ax.text(t + top * 0.012, i, f"{t:.2f}s", va="center", fontsize=9.5,
+            whisker(ax, i)
+            ax.text(highs[i] + top * 0.012, i, f"{t:.2f}s", va="center", fontsize=9.5,
                     fontweight="bold", color="#0b0b0b")
 
     fig.patch.set_facecolor("#fcfcfb")
     handles = [plt.Rectangle((0, 0), 1, 1, color=COLORS[s]) for s in SEGMENTS]
     fig.legend(handles, SEGMENTS, ncol=len(SEGMENTS), loc="upper center",
-               bbox_to_anchor=(0.5, 0.93), frameon=False, fontsize=9, handlelength=1.1)
-    fig.suptitle("git install time by phase  ·  offline install, download excluded (s)",
-                 x=0.02, ha="left", y=0.99, fontsize=12, fontweight="bold", color="#0b0b0b")
+               bbox_to_anchor=(0.5, 0.94), frameon=False, fontsize=8.5, handlelength=1.1)
+    reps = mgrs[0].get("reps", "?")
+    fig.suptitle(f"git install time by phase  ·  offline, download excluded  ·  bar = median of {reps} runs, whisker = min–max",
+                 x=0.02, ha="left", y=0.99, fontsize=11, fontweight="bold", color="#0b0b0b")
     fig.subplots_adjust(top=0.82, bottom=0.16, left=0.10, right=0.93)
     fig.savefig(os.path.join(ROOT, "chart.png"), facecolor="#fcfcfb")
     print("wrote chart.png")
