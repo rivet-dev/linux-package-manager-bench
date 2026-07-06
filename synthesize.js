@@ -30,7 +30,7 @@ const DL_INFO = {
   apt:    (d) => ({ size: cap(d, /Need to get ([\d.]+ ?[kMG]i?B)/i), deps: count(d, /\bGet:\d+/g) }),
   apk:    (d) => ({ size: null,                                       deps: count(d, /Downloading /gi) }),
   dnf:    (d, i) => ({ size: cap(i, /Total size of inbound packages is\s*([\d.]+ ?[kMG]i?B)/i) || cap(d, /Total (?:download )?size:?\s*([\d.]+ ?[kMG]i?B)/i),
-                      deps: count(i, /\]\s*Installing /gi) || count(d, /\(\d+\/\d+\):/g) }),
+                      deps: count(i, /\]\s*(?:Installing|Reinstalling) /gi) || count(d, /\(\d+\/\d+\):/g) }),
   pacman: (d) => ({ size: cap(d, /Total Download Size:\s*([\d.]+ ?[kMG]i?B)/i), deps: cap(d, /Packages? \((\d+)\)/) }),
   nix:    (d) => ({ size: cap(d, /([\d.]+ ?[kMG]i?B) download/i),     deps: cap(d, /(\d+) paths? will be fetched/i) }),
   brew:   (d, i) => ({ size: null,                                     deps: count(i, /🍺/g) }),
@@ -147,7 +147,7 @@ function body() {
     row('deps ~', (r) => r.deps ?? '—'),
     row('download size', (r) => r.size ?? '—'),
     '',
-    "_The `install: *` sub-phase split is from a single (last) rep, not the median run; `deps ~` is approximate and counted differently per manager (see README). **nix** caveat: its install is a profile symlink flip — unpack happens during the download phase (store realization), so its install time is **not** comparable to the others' unpack._",
+    "_Each manager installs only the `git` package with deps pre-installed, so `deps ~` = 1 (nix shows its store closure and is not counted). The `install: *` split is from a single (last) rep, not the median. **nix** caveat: its install is a profile symlink flip — unpack happens during the download phase (store realization), so its install time is **not** comparable to the others' unpack._",
     '', '### Top install sub-steps (by measured delta)', '',
     ...rows.map((r) => `- **${r.manager}** (${r.image}): ` + r.top.map((s) => `\`${s}\``).join(' · ')),
   ].join('\n');
