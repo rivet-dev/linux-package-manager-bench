@@ -48,7 +48,10 @@ def draw(ax, mgrs):
 
 
 def bar_label(mgrs, totals, i):
-    return f"{totals[i]:.2f}s"
+    t = totals[i]
+    if t < 0.001:  # sub-millisecond (agentos): seconds would round to a bare 0.00s
+        return f"{t * 1000:.3f} ms"
+    return f"{t:.2f}s"
 
 
 def ytick(m):
