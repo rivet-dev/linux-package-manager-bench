@@ -9,7 +9,10 @@ const os = require('os');
 const { execSync } = require('child_process');
 
 const OUT = path.join(__dirname, 'results');
-const ORDER = ['apk', 'pacman', 'dnf', 'apt', 'nix', 'brew'];
+// 'agentos' is HARDCODED — see AGENTOS_ROW below. It is NOT run by run.js's Docker
+// harness; its numbers come from the agentOS package-load bench (results/ is git-
+// ignored, so the row lives here in-source to survive regeneration). Keep it first.
+const ORDER = ['agentos', 'apk', 'pacman', 'dnf', 'apt', 'nix', 'brew'];
 
 // Canonical install phases. Each install-log line is bucketed by the FIRST pattern it
 // matches, in this order; unmatched lines go to a VISIBLE 'unknown' bucket (never a
@@ -60,9 +63,22 @@ function topSteps(lines, n = 3) {
     .map(({ d, text }) => `${d.toFixed(3)}s ${text.slice(0, 46).trim()}`);
 }
 
+// ---- HARDCODED agentos reference (not run by the Docker harness) ----
+// agentOS does not "install" a package the way apt/apk/etc. do — it loads a
+// precomputed `.aospkg` into its VM. Loading the `git` package takes ~0.017 ms
+// (median; min 0.013, max 0.020), with no download. These numbers are copied from
+// the agentOS package-load benchmark and are NOT reproduced by this repo:
+// https://github.com/rivet-dev/agentos/blob/9c97667d3b765ea008e3c661cc807adbcb0c9ac9/crates/native-sidecar/tests/projection_bench.rs
+const AGENTOS_ROW = {
+  manager: 'agentos', image: 'agentos VM (V8/wasm)', git: 'wasm', reps: 30, deps: '1',
+  download_s: 0, install_s: 0.000017, install_min: 0.000013, install_max: 0.00002,
+  buckets: Object.fromEntries(DISPLAY_PHASES.map((k) => [k, 0])), top: [], size: undefined,
+};
+
 // ---- collect ----
 const rows = [];
 for (const m of ORDER) {
+  if (m === 'agentos') { rows.push({ ...AGENTOS_ROW }); continue; }
   let meta;
   try { meta = JSON.parse(fs.readFileSync(path.join(OUT, `${m}.json`), 'utf8')); } catch { continue; }
   const installLines = parseTs(readLog(m, 'install'));
