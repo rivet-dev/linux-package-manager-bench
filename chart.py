@@ -31,17 +31,31 @@ def seg_val(m, s):
 
 def draw(ax, mgrs):
     for i, m in enumerate(mgrs):
+        is_nix = m.get("manager") == "nix"   # nix install is a symlink flip: quarantine it
+        ec = "#6b7078" if is_nix else "#fcfcfb"
+        hatch = "////" if is_nix else None
         left = 0.0
         for s in SEGMENTS:
             v = seg_val(m, s)
             if v <= 0:
                 continue
             ax.barh(i, v, left=left, height=0.62, color=COLORS[s],
-                    edgecolor="#fcfcfb", linewidth=1.2)
+                    edgecolor=ec, linewidth=1.2, hatch=hatch)
             left += v
     ax.set_facecolor("#fcfcfb")
     ax.set_axisbelow(True)
     ax.grid(axis="x", color="#e1e0d9", linewidth=0.8)
+
+
+def bar_label(mgrs, totals, i):
+    return f"{totals[i]:.2f}s"
+
+
+def ytick(m):
+    if m.get("manager") == "nix":
+        return "nix\n(symlink flip)"
+    d = m.get("deps")
+    return f"{m['manager']}\n~{d} pkg" if d else m["manager"]
 
 
 def main():
@@ -89,25 +103,25 @@ def main():
             kw = dict(transform=ax.transAxes, color="#898781", lw=1, clip_on=False)
             ax.plot((at - d, at + d), (-d, +d), **kw)
             ax.plot((at - d, at + d), (1 - d, 1 + d), **kw)
-        axl.set_yticks(range(len(names))); axl.set_yticklabels(names, fontsize=11)
+        axl.set_yticks(range(len(names))); axl.set_yticklabels([ytick(m) for m in mgrs], fontsize=9)
         axl.set_xlabel("install time (s)", fontsize=9, color="#52514e")
         for i, t in enumerate(totals):
             ax = axr if i == oi else axl
             whisker(ax, i)
             ax.text(highs[i] + (top * 0.006 if ax is axr else left_max * 0.02), i,
-                    f"{t:.2f}s", va="center", fontsize=9.5, fontweight="bold", color="#0b0b0b")
+                    bar_label(mgrs, totals, i), va="center", fontsize=9, fontweight="bold", color="#0b0b0b")
     else:
         fig, ax = plt.subplots(figsize=(9.2, h), dpi=150)
         draw(ax, mgrs)
         ax.set_xlim(0, max(highs) * 1.12)
         ax.spines[["right", "top"]].set_visible(False)
         ax.spines["bottom"].set_color("#c3c2b7")
-        ax.set_yticks(range(len(names))); ax.set_yticklabels(names, fontsize=11)
+        ax.set_yticks(range(len(names))); ax.set_yticklabels([ytick(m) for m in mgrs], fontsize=9)
         ax.set_xlabel("install time (s)", fontsize=9, color="#52514e")
         for i, t in enumerate(totals):
             whisker(ax, i)
-            ax.text(highs[i] + top * 0.012, i, f"{t:.2f}s", va="center", fontsize=9.5,
-                    fontweight="bold", color="#0b0b0b")
+            ax.text(highs[i] + top * 0.012, i, bar_label(mgrs, totals, i), va="center",
+                    fontsize=9, fontweight="bold", color="#0b0b0b")
 
     fig.patch.set_facecolor("#fcfcfb")
     handles = [plt.Rectangle((0, 0), 1, 1, color=COLORS[s]) for s in SEGMENTS]

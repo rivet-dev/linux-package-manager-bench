@@ -12,7 +12,7 @@ TS_CMD="${TS_CMD:-node $ROOT/lib/ts.js}"
 REPS="${REPS:-5}"
 
 now() { date +%s.%N; }
-sub() { awk -v a="$1" -v b="$2" 'BEGIN{d=b-a; if(d<0)d=0; printf "%.3f", d}'; }  # host ts have %N precision
+sub() { awk -v a="$1" -v b="$2" 'BEGIN{d=b-a; if(d<0)d=0; printf "%.3f\n", d}'; }  # host ts have %N precision; newline so callers can sort/min
 median() { sort -n | awk '{a[NR]=$1} END{ if(NR==0){print 0} else if(NR%2){printf "%.3f",a[(NR+1)/2]} else {printf "%.3f",(a[NR/2]+a[NR/2+1])/2} }'; }
 
 # baseline: min wall-time of a no-op `docker exec CID true` over 3 tries (the fixed
